@@ -3,15 +3,22 @@ import datetime
 from collections import Counter
 
 #initializing vars
-name_1 = ' Kim 🐼✌🏽'
+name_1 = ' Kim 🐼✌🏽' #Get names from chat
 name_2 = ' Steven'
 filename = "Input/_chat.txt"
-interesting_words_threshold = 3000
+interesting_words_threshold = 3000 #threshold for interesting words, is equal to the amount of times used
 wFilename = f"Results\chatresults_{name_1}_and{name_2}.txt"
+
+debug = True   #turn debug console logs on/off
+maximumWaitingPeriods = 5 # maximum waiting periods to display
+minimumWaitingSpan = datetime.timedelta(days=2) #timedelta for the minimum waiting time (keep high as possible)
+fromLine = 0 #start line
+maxLine = -1 #-1 is all
 
 # available variables
 line_number = 0
 longest_wait = datetime.timedelta(seconds=0)
+waiting_periods = []
 number_of_messages = 0
 messages_name_1 = 0
 messages_name_2 = 0
@@ -61,6 +68,12 @@ time_of_day ={
     "22:00" : 0,
     "23:00" : 0,
 }
+
+
+def debugConsole(message):
+    if debug:
+        print(message)
+
 
 def dayOfWeekFunc(weekday):
     match weekday:
@@ -160,6 +173,34 @@ def createTimeStatsString(timezones):
 def extract_emojis(text):
     return re.findall(r'[^\w\s,.:;\>\<\+\'\\[\]\|\–\%\#\{\}\~´\&\€•\*=\^…@‘’?!\(\)\\\/\”\“\-(‎)\"]', text)
 
+
+# data object waiting periods is : [duration,firstMessage, NextMessage, firstDate, nextDate]
+def create_list_of_waiting_periods(duration, firstMessage, nextMessage, firstDate, nextDate):
+    if(duration > minimumWaitingSpan):
+        buffer = [[duration, firstMessage, nextMessage, firstDate, nextDate]]
+        count = len(waiting_periods)
+        reorder = False
+
+        # just add, list is not full yet
+        if count == 0 or count < maximumWaitingPeriods:
+            waiting_periods.append(buffer.pop())
+            if(count >= 2):
+                reorder = True
+
+        #list is full but new timedelta is till bigger than the smallest one
+        elif buffer[0][0] > waiting_periods[-1][0]:
+            waiting_periods[-1] = buffer.pop()
+            reorder = True
+
+        #reorder list 
+        if reorder:
+            while waiting_periods[count-1][0] > waiting_periods[count-2][0] and count >= 2:
+                buffer.append(waiting_periods[count-2])
+                waiting_periods[count-2]=waiting_periods[count-1]
+                waiting_periods[count-1]=buffer.pop(0)
+                count = count - 1
+            reorder = False
+
 with open(filename, "r", encoding="utf8") as file:
     # read the files, split the dates into messages
     content = file.read()
@@ -169,17 +210,18 @@ with open(filename, "r", encoding="utf8") as file:
     current_date_time = datetime.datetime.strptime(lines[1], '[%d-%m-%Y, %H:%M:%S]')
     start_date = current_date_time
 
-    for line in lines:
+    for line in lines[0:-1]:
         # go through the lines
         line_number = line_number + 1
 
         # these are the date lines
         if line_number % 2 == 0 or line_number == 2:
             new_date_time = datetime.datetime.strptime(line, '[%d-%m-%Y, %H:%M:%S]')
-            if longest_wait < (new_date_time - current_date_time):
-                longest_wait = new_date_time - current_date_time
-                dates_longest_wait = f"{current_date_time.strftime('%d-%m-%Y, %H:%M:%S')} till {new_date_time.strftime('%d-%m-%Y, %H:%M:%S')}"
-
+            #if longest_wait < (new_date_time - current_date_time):
+            #    longest_wait = new_date_time - current_date_time
+            #    dates_longest_wait = f"{current_date_time.strftime('%d-%m-%Y, %H:%M:%S')} till {new_date_time.strftime('%d-%m-%Y, %H:%M:%S')}"
+            create_list_of_waiting_periods((new_date_time - current_date_time),"test", "test", current_date_time, new_date_time)
+            
             dayOfWeekFunc(new_date_time.isoweekday())
             timeOfDayFunc(new_date_time.hour)
 
@@ -219,7 +261,7 @@ with open(filename, "r", encoding="utf8") as file:
 
 with open(wFilename, "w" ,encoding="utf-8") as writeFile:
     writeFile.write(f"Messages from {start_date.strftime('%d-%m-%Y, %H:%M:%S')} till {end_date.strftime('%d-%m-%Y, %H:%M:%S')}\n")
-    writeFile.write(f"Longest wait: {longest_wait} from {dates_longest_wait}\n")
+    #writeFile.write(f"Longest wait: {longest_wait} from {dates_longest_wait}\n")
     
     writeFile.write(f"Number of messages: {number_of_messages}\n")
     writeFile.write(f"Number of words: {all_words_count}\n")
@@ -243,3 +285,8 @@ with open(wFilename, "w" ,encoding="utf-8") as writeFile:
     writeFile.write("\nMost occuring emoji:\n")
     for emoji, amount in most_occuring_emojis:
         writeFile.write(f"{emoji}: {amount}x\n")
+
+    i = 1
+    for waitingPeriods in waiting_periods:
+        writeFile.write(f"{i}: duration: {waitingPeriods[0]} message 1: {waitingPeriods[1]} message 2: {waitingPeriods[2]} from {waitingPeriods[3].strftime('%d-%m-%Y, %H:%M:%S')} till {waitingPeriods[4].strftime('%d-%m-%Y, %H:%M:%S')}\n")
+        i = i + 1
