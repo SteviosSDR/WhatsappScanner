@@ -12,10 +12,12 @@ wFilename = f"Results\chatresults_{name_1}_and{name_2}.txt"
 debug = True   #turn debug console logs on/off
 maximumWaitingPeriods = 5 # maximum waiting periods to display
 minimumWaitingSpan = datetime.timedelta(days=2) #timedelta for the minimum waiting time (keep high as possible)
-fromLine = 0 #start line
+minLine = 0 #start line
 maxLine = -1 #-1 is all
 
 # available variables
+longest_massages_from_name_1 = [["",0]]
+longest_massages_from_name_2 = [["",0]]
 line_number = 0
 longest_wait = datetime.timedelta(seconds=0)
 waiting_periods = []
@@ -174,10 +176,10 @@ def extract_emojis(text):
     return re.findall(r'[^\w\s,.:;\>\<\+\'\\[\]\|\–\%\#\{\}\~´\&\€•\*=\^…@‘’?!\(\)\\\/\”\“\-(‎)\"]', text)
 
 
-# data object waiting periods is : [duration,firstMessage, NextMessage, firstDate, nextDate]
-def create_list_of_waiting_periods(duration, firstMessage, nextMessage, firstDate, nextDate):
+# data object waiting periods is : [duration, firstDate, nextDate]
+def create_list_of_waiting_periods(duration, firstDate, nextDate):
     if(duration > minimumWaitingSpan):
-        buffer = [[duration, firstMessage, nextMessage, firstDate, nextDate]]
+        buffer = [[duration, firstDate, nextDate]]
         count = len(waiting_periods)
         reorder = False
 
@@ -201,6 +203,7 @@ def create_list_of_waiting_periods(duration, firstMessage, nextMessage, firstDat
                 count = count - 1
             reorder = False
 
+
 with open(filename, "r", encoding="utf8") as file:
     # read the files, split the dates into messages
     content = file.read()
@@ -210,18 +213,15 @@ with open(filename, "r", encoding="utf8") as file:
     current_date_time = datetime.datetime.strptime(lines[1], '[%d-%m-%Y, %H:%M:%S]')
     start_date = current_date_time
 
-    for line in lines[0:-1]:
+    for line in lines[minLine:maxLine]:
         # go through the lines
         line_number = line_number + 1
 
         # these are the date lines
         if line_number % 2 == 0 or line_number == 2:
             new_date_time = datetime.datetime.strptime(line, '[%d-%m-%Y, %H:%M:%S]')
-            #if longest_wait < (new_date_time - current_date_time):
-            #    longest_wait = new_date_time - current_date_time
-            #    dates_longest_wait = f"{current_date_time.strftime('%d-%m-%Y, %H:%M:%S')} till {new_date_time.strftime('%d-%m-%Y, %H:%M:%S')}"
-            create_list_of_waiting_periods((new_date_time - current_date_time),"test", "test", current_date_time, new_date_time)
-            
+
+            create_list_of_waiting_periods((new_date_time - current_date_time), current_date_time, new_date_time)
             dayOfWeekFunc(new_date_time.isoweekday())
             timeOfDayFunc(new_date_time.hour)
 
@@ -235,6 +235,7 @@ with open(filename, "r", encoding="utf8") as file:
             if "‎" in line:
                 line = line.split("‎", 1)[0]
 
+            chars_in_message = 0
             if line.startswith(name_1):
                 messages_name_1 = messages_name_1 + 1
                 emoji_list = emoji_list + extract_emojis(line[len(name_1) + 2:])
@@ -242,6 +243,9 @@ with open(filename, "r", encoding="utf8") as file:
                 words_by_name_1 = words_by_name_1 + len(newCollection)
                 for word in newCollection:
                     chars_by_name_1 = chars_by_name_1 + len(word)
+                    chars_in_message = chars_in_message + len(word)
+                if chars_in_message > longest_massages_from_name_1[0][1]:
+                    longest_massages_from_name_1.insert(0, [line, chars_in_message])
                 all_words = all_words + newCollection
             else: 
                 messages_name_2 = messages_name_2 + 1
@@ -250,6 +254,9 @@ with open(filename, "r", encoding="utf8") as file:
                 words_by_name_2 = words_by_name_2 + len(newCollection)
                 for word in newCollection:
                     chars_by_name_2 = chars_by_name_2 + len(word)
+                    chars_in_message = chars_in_message + len(word)
+                if chars_in_message > longest_massages_from_name_2[0][1]:
+                    longest_massages_from_name_2.insert(0, [line, chars_in_message])
                 all_words = all_words + newCollection
 
     all_words_count = len(all_words)
@@ -286,7 +293,16 @@ with open(wFilename, "w" ,encoding="utf-8") as writeFile:
     for emoji, amount in most_occuring_emojis:
         writeFile.write(f"{emoji}: {amount}x\n")
 
+    writeFile.write("\nLongest periods of silence:\n")
     i = 1
     for waitingPeriods in waiting_periods:
-        writeFile.write(f"{i}: duration: {waitingPeriods[0]} message 1: {waitingPeriods[1]} message 2: {waitingPeriods[2]} from {waitingPeriods[3].strftime('%d-%m-%Y, %H:%M:%S')} till {waitingPeriods[4].strftime('%d-%m-%Y, %H:%M:%S')}\n")
+        writeFile.write(f"{i}: duration: {waitingPeriods[0]} from {waitingPeriods[1].strftime('%d-%m-%Y, %H:%M:%S')} till {waitingPeriods[2].strftime('%d-%m-%Y, %H:%M:%S')}\n")
         i = i + 1
+    
+    writeFile.write(f"\nlongest message from {name_1}:\n")
+    writeFile.write(f"{longest_massages_from_name_1[0][0]}\n")
+    writeFile.write(f"{longest_massages_from_name_1[0][1]} characters\n")
+
+    writeFile.write(f"\nlongest message from {name_2}:\n")
+    writeFile.write(f"{longest_massages_from_name_2[0][0]}\n")
+    writeFile.write(f"{longest_massages_from_name_2[0][1]} characters\n")
