@@ -2,6 +2,7 @@ import re
 import datetime
 from collections import Counter
 from enum import Enum
+import time
 
 #OS types for import
 class OSEnum(Enum):
@@ -9,9 +10,9 @@ class OSEnum(Enum):
     ANDROID = 2
 
 #initializing vars
-name_1 = ' Gerben 🖤💕' #Get names from chat
-name_2 = ' Marte'
-filename = "gerben_marte.txt"
+name_1 = ' Smartie' #Get names from chat
+name_2 = ' Kim van Embden'
+filename = "smartie.txt"
 interesting_words_threshold = 3000 #threshold for interesting words, is equal to the amount of times used
 wFilename = f"Results\chatresults_{name_1}_and{name_2}.txt"
 
@@ -20,7 +21,7 @@ maximumWaitingPeriods = 5 # maximum waiting periods to display
 minimumWaitingSpan = datetime.timedelta(days=2) #timedelta for the minimum waiting time (keep high as possible)
 minLine = 0 #start line
 maxLine = -1 #-1 is all
-OS = OSEnum.ANDROID
+OS = OSEnum.IOS
 
 # available variables
 longest_massages_from_name_1 = [["",0]]
@@ -39,6 +40,9 @@ chars_by_name_1 = 0
 chars_by_name_2 = 0
 all_char_count = 0
 emoji_list = []
+
+if(debug):
+    start_time = time.time()
 
 days_of_week = {
     "monday" : 0,
@@ -223,7 +227,8 @@ with open(f"Input/{filename}", "r", encoding="utf8") as file:
     if OS == OSEnum.IOS:
         current_date_time = datetime.datetime.strptime(lines[1], '[%d-%m-%Y, %H:%M:%S]')
     else:
-        current_date_time = datetime.datetime.strptime(lines[1].replace(" -", ""), '%d-%m-%Y %H:%M')
+        current_date_time = datetime.datetime.strptime(lines[1], '%d-%m-%Y %H:%M -')
+        
     start_date = current_date_time
 
     for line in lines[minLine:maxLine]:
@@ -235,7 +240,7 @@ with open(f"Input/{filename}", "r", encoding="utf8") as file:
             if OS == OSEnum.IOS:
                 new_date_time = datetime.datetime.strptime(line, '[%d-%m-%Y, %H:%M:%S]')
             else:
-                new_date_time = datetime.datetime.strptime(line.replace(" -", ""), '%d-%m-%Y %H:%M')
+                new_date_time = datetime.datetime.strptime(line, '%d-%m-%Y %H:%M -')
 
             create_list_of_waiting_periods((new_date_time - current_date_time), current_date_time, new_date_time)
             dayOfWeekFunc(new_date_time.isoweekday())
@@ -281,7 +286,7 @@ with open(f"Input/{filename}", "r", encoding="utf8") as file:
                 all_words = all_words + newCollection
 
     all_words_count = len(all_words)
-    most_occuring = Counter({k: c for k, c in Counter(all_words).most_common(100) if c <= interesting_words_threshold}).most_common(10)
+    most_occuring = Counter({k: c for k, c in Counter(all_words).most_common(10) if c <= interesting_words_threshold}).most_common(10)
     most_occuring_emojis = Counter(emoji_list).most_common(10)
     end_date = current_date_time
     all_char_count = chars_by_name_1 + chars_by_name_2
@@ -327,3 +332,6 @@ with open(wFilename, "w" ,encoding="utf-8") as writeFile:
     writeFile.write(f"\nlongest message from {name_2}:\n")
     writeFile.write(f"{longest_massages_from_name_2[0][0]}\n")
     writeFile.write(f"{longest_massages_from_name_2[0][1]} characters\n")
+
+if debug:
+    print("--- %s seconds ---" % (time.time() - start_time))
