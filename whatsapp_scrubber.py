@@ -1,11 +1,17 @@
 import re
 import datetime
 from collections import Counter
+from enum import Enum
+
+#OS types for import
+class OSEnum(Enum):
+    IOS = 1,
+    ANDROID = 2
 
 #initializing vars
-name_1 = ' Kim 🐼✌🏽' #Get names from chat
-name_2 = ' Steven'
-filename = "Input/_chat.txt"
+name_1 = ' Gerben 🖤💕' #Get names from chat
+name_2 = ' Marte'
+filename = "gerben_marte.txt"
 interesting_words_threshold = 3000 #threshold for interesting words, is equal to the amount of times used
 wFilename = f"Results\chatresults_{name_1}_and{name_2}.txt"
 
@@ -14,6 +20,7 @@ maximumWaitingPeriods = 5 # maximum waiting periods to display
 minimumWaitingSpan = datetime.timedelta(days=2) #timedelta for the minimum waiting time (keep high as possible)
 minLine = 0 #start line
 maxLine = -1 #-1 is all
+OS = OSEnum.ANDROID
 
 # available variables
 longest_massages_from_name_1 = [["",0]]
@@ -32,7 +39,6 @@ chars_by_name_1 = 0
 chars_by_name_2 = 0
 all_char_count = 0
 emoji_list = []
-
 
 days_of_week = {
     "monday" : 0,
@@ -204,13 +210,20 @@ def create_list_of_waiting_periods(duration, firstDate, nextDate):
             reorder = False
 
 
-with open(filename, "r", encoding="utf8") as file:
+with open(f"Input/{filename}", "r", encoding="utf8") as file:
     # read the files, split the dates into messages
     content = file.read()
-    lines = re.split(r'(\[\d{2}\-\d{2}\-\d{4}\, \d{2}\:\d{2}:\d{2}\])', content, flags=re.MULTILINE)
+
+    if OS == OSEnum.IOS:
+        lines = re.split(r'(\[\d{2}\-\d{2}\-\d{4}\, \d{2}\:\d{2}:\d{2}\])', content, flags=re.MULTILINE)
+    else:
+        lines = re.split(r'(\d{2}\-\d{2}\-\d{4} \d{2}\:\d{2} \-)', content, flags=re.MULTILINE)
 
     # Get the start date time
-    current_date_time = datetime.datetime.strptime(lines[1], '[%d-%m-%Y, %H:%M:%S]')
+    if OS == OSEnum.IOS:
+        current_date_time = datetime.datetime.strptime(lines[1], '[%d-%m-%Y, %H:%M:%S]')
+    else:
+        current_date_time = datetime.datetime.strptime(lines[1].replace(" -", ""), '%d-%m-%Y %H:%M')
     start_date = current_date_time
 
     for line in lines[minLine:maxLine]:
@@ -219,7 +232,10 @@ with open(filename, "r", encoding="utf8") as file:
 
         # these are the date lines
         if line_number % 2 == 0 or line_number == 2:
-            new_date_time = datetime.datetime.strptime(line, '[%d-%m-%Y, %H:%M:%S]')
+            if OS == OSEnum.IOS:
+                new_date_time = datetime.datetime.strptime(line, '[%d-%m-%Y, %H:%M:%S]')
+            else:
+                new_date_time = datetime.datetime.strptime(line.replace(" -", ""), '%d-%m-%Y %H:%M')
 
             create_list_of_waiting_periods((new_date_time - current_date_time), current_date_time, new_date_time)
             dayOfWeekFunc(new_date_time.isoweekday())
@@ -232,8 +248,13 @@ with open(filename, "r", encoding="utf8") as file:
             number_of_messages =  number_of_messages + 1
 
             # remove whatsapp edits and removal char and message, only keep text that is send by user
-            if "‎" in line:
-                line = line.split("‎", 1)[0]
+            if OS == OSEnum.IOS:
+                if "‎" in line:
+                    line = line.split("‎", 1)[0]
+            elif OS == OSEnum.ANDROID:
+                if "<Dit bericht is bewerkt>" or "<Media weggelaten>" in line:
+                    line.replace("<Dit bericht is bewerkt>","")
+                    line.replace("<Media weggelaten>", "")
 
             chars_in_message = 0
             if line.startswith(name_1):
